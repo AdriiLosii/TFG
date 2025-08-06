@@ -1,0 +1,5 @@
+<launch>	
+	<node pkg="aravis_driver_ros2" exec="aravis_camera_node" name="aravis_camera" namespace="camera_1" output="screen">
+		<param from="/home/adrian.losada@aimen.local/workspaces/octo_ws/src/aravis-ros2/config/params.yaml"/>
+	</node>
+</launch>

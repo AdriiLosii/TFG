@@ -1,0 +1,134 @@
+########################################	WORKFLOW		########################################
+(Encender cámara y pendant, cargar ExternalControl.urp previamente)
+Terminal 1:
+ros2 launch ur_robot_driver ur_control.launch.py ur_type:=ur5e robot_ip:=169.254.128.101 kinematics_params_file:="${HOME}/calibrations/my_robot_calibration.yaml"
+
+Terminal 2:
+source ~/workspaces/octo_ws/install/setup.bash
+ros2 launch aravis_driver_ros2 aravis_camera1_launch.xml
+
+Terminal 3:
+OPTIONAL:
+ros2 service call /dashboard_client/load_program ur_dashboard_msgs/srv/Load "filename: traj-drag/drag-000.urp"``
+ros2 service call /dashboard_client/load_program ur_dashboard_msgs/srv/Load "filename: traj-pick_up/pick_up-000.urp"``
+ros2 service call /dashboard_client/load_program ur_dashboard_msgs/srv/Load "filename: traj-pick_place/pick_place-000.urp"``
+ros2 service call /dashboard_client/load_program ur_dashboard_msgs/srv/Load "filename: ExternalControl.urp"``
+ros2 service call /dashboard_client/play std_srvs/srv/Trigger {}
+
+Terminal 4:
+rqt
+
+
+
+
+########################################	VVV ADDITIONAL INFORMATION VVV		########################################
+
+
+########################################	IDS Camera		########################################
+IP Cámara: 169.254.128.216
+Modificar configuración de red: IPv4 > Manual > Dirección=169.254.128.210 - Máscara=255.255.0.0
+vvvv OR vvvv
+sudo ifconfig enxa0cec8630b6f 169.254.128.210 up
+vvvv OR vvvv
+Modificar configuración de red a "SÓLO ENLACE LOCAL"
+
+- Launch software:
+arv-viewer-0.8
+arv-viewer-0.10
+
+- Publicar imagen en topic:
+ros2 launch aravis_driver_ros2 aravis_camera1_launch.xml
+
+- Check:
+rqt > Plugins > Visualization > Image View > [Topic]
+
+
+
+########################################	Teach Pendant		########################################
+- UR teach pendant (https://docs.universal-robots.com/Universal_Robots_ROS2_Documentation/doc/ur_client_library/doc/setup/network_setup.html#network-setup):
+Setup Robot -> Network:
+IP address: 169.254.128.101
+Subnet mask: 255.255.0.0
+Default gateway: 0.0.0.0
+Preferred DNS server: 0.0.0.0
+Alternative DNS server: 0.0.0.0
+
+
+
+########################################	PC (ur5e)		########################################
+- PC (https://docs.universal-robots.com/Universal_Robots_ROS2_Documentation/doc/ur_client_library/doc/setup/network_setup.html#network-setup):
+(OPCIÓN 1):
+vvvv NO vvvv
+Conectar al robot:
+sudo ifconfig <name> 169.254.128.1 up
+sudo ifconfig enxa0cec8630b6f 169.254.128.1 up
+
+(OPCIÓN 2):
+IPv4
+Manual
+Address: 169.254.128.210
+Netmask: 255.255.0.0
+
+- Check:
+Camera:
+ping 169.254.128.216
+Robot:
+ping 169.254.128.101
+PC:
+ping 169.254.128.210
+
+- Extraer .yaml de calibración del robot (optional):
+ros2 launch ur_calibration calibration_correction.launch.py robot_ip:=169.254.128.101 target_filename:="${HOME}/calibrations/my_robot_calibration.yaml"
+
+- Lanzar driver (minimal):
+ros2 launch ur_robot_driver ur_control.launch.py ur_type:=ur5e robot_ip:=169.254.128.101
+vvvv OR vvvv
+- Lanzar driver (complete):
+ros2 launch ur_robot_driver ur_control.launch.py ur_type:=ur5e robot_ip:=169.254.128.101 script_sender_port:=50002 kinematics_params_file:="${HOME}/calibrations/my_robot_calibration.yaml" initial_joint_controller:=forward_position_controller
+
+- OPTION 1: LOCAL CONTROL MODE: load the program on the robot and press the “Play” button on the teach pendant
+- OPTION 2: REMOTE CONTROL MODE: load and start the program using the following dashboard calls:
+ros2 service call /dashboard_client/load_program ur_dashboard_msgs/srv/Load "filename: ExternalControl.urp"``
+vvvv OR vvvv
+Cargar en el Teach Pendant el programa "ExternalControl.urp" manualmente
+
+ros2 service call /dashboard_client/play std_srvs/srv/Trigger {}
+- OPTION 3: HEADLESS MODE: Nothing is needed. The driver is running already.
+
+- Check controllers:
+ros2 control list_controllers
+
+- Activar/Desactivar controllers (velocidad y posición)(solo 1 controller a la vez):
+ros2 control switch_controllers --deactivate forward_velocity_controller --activate forward_position_controller
+vvvv OR vvvv
+ros2 service call /controller_manager/switch_controller controller_manager_msgs/srv/SwitchController '{activate_controllers: ["forward_velocity_controller"], deactivate_controllers: ["forward_position_controller"], strictness: 1}'
+ros2 service call /controller_manager/switch_controller controller_manager_msgs/srv/SwitchController '{activate_controllers: ["forward_position_controller"], deactivate_controllers: ["forward_velocity_controller"], strictness: 1}'
+
+- Publicar velocidad:
+ros2 topic pub /urscript_interface/script_command std_msgs/msg/String "{data: '???'}"
+vvvv OR vvvv
+ros2 topic pub /forward_velocity_controller/commands std_msgs/msg/Float64MultiArray "data: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]"
+
+- Publicar posiciones:
+ros2 topic pub /urscript_interface/script_command std_msgs/msg/String "{data: 'movej([X, X, X, X, X, X])'}"
+vvvv OR vvvv
+ros2 topic pub /forward_position_controller/commands std_msgs/msg/Float64MultiArray "data: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]"
+
+- Continuar tras interrupciones:
+- OPTION 1: LOCAL CONTROL MODE: simply press the “Play” button on the teach pendant.
+- OPTION 2: REMOTE CONTROL MODE: start the program using the following dashboard call:
+ros2 service call /dashboard_client/play std_srvs/srv/Trigger {}
+- OPTION 3: HEADLESS MODE: perform the following service call:
+ros2 service call /io_and_status_controller/resend_robot_program std_srvs/srv/Trigger {}
+
+
+
+########################################	Docker			########################################
+- Instrucciones Docker (https://docs.universal-robots.com/Universal_Robots_ROS2_Documentation/doc/ur_client_library/doc/setup/ursim_docker.html):
+Lanzar docker (full command):
+docker run --rm -it -p 5900:5900 -p 6080:6080 -v ${HOME}/.ursim/urcaps:/urcaps -v ${HOME}/.ursim/programs:/ursim/programs --name ursim universalrobots/ursim_e-series
+vvvv OR vvvv
+ros2 run ur_client_library start_ursim.sh
+
+- Conectarse al robot:
+ros2 launch ur_robot_driver ur_control.launch.py ur_type:=ur5e robot_ip:=172.17.0.2
