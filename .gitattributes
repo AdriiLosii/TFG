@@ -35,3 +35,4 @@
 *.tfrecord-00029-of-00032 filter=lfs diff=lfs merge=lfs -text
 *.tfrecord-00030-of-00032 filter=lfs diff=lfs merge=lfs -text
 *.tfrecord-00031-of-00032 filter=lfs diff=lfs merge=lfs -text
+*.npy filter=lfs diff=lfs merge=lfs -text
